@@ -1,5 +1,7 @@
+const { where } = require("sequelize");
 const db = require("../db/connection.js");
 const Event = require("../models/event.js");
+const Ticket = require("../models/ticket.js");
 var jwt = require('jsonwebtoken');
 
 async function createEvent(req, res) {
@@ -45,9 +47,93 @@ async function getAllEvents(req, res) {
 
 async function getMyEvents(req, res) {
     try{
-        let token = req.headers.authorization;
-        const events = await Event.findAll();
+        let auther = await getAuther(req.headers.authorization);
+        const events = await Event.findAll({
+            where: {
+                auther: auther
+            }
+        });
         res.status(200).json(events);
+    }
+    catch(e){
+        console.log(e);
+    }
+}
+
+async function getEnrolledEvents(req, res) {
+    try{
+        let user = await getAuther(req.headers.authorization);
+        const tickets = await Ticket.findAll({
+            where: {
+                user: user
+            }
+        });
+        let events = [];
+        for(let i = 0; i < tickets.length; i++){
+            let event = await Event.findByPk(tickets[i].event);
+            events.push(event);
+        }
+        res.status(200).json(events);
+    }
+    catch(e){
+        console.log(e);
+    }
+}
+
+async function enrollEvent(req, res) {
+    try{
+        let auther = await getAuther(req.headers.authorization);
+        const event = await Event.findByPk(req.params.id);
+        if(event.auther == auther){
+            res.status(401).json({message: "You can't enroll in your own event"});
+        }
+        else{
+            const newTicket = Ticket.build({
+                'id': null,
+                'user': auther,
+                'event': req.params.id
+            });
+            await newTicket.save();
+            res.status(200).json({message: "Enrolled in event"});
+        }
+    }
+    catch(e){
+        console.log(e);
+    }
+}
+
+async function unenroll(req,res){
+    try{
+        let user = await getAuther(req.headers.authorization);
+        const ticket = await Ticket.findOne({
+            where: {
+                user: user,
+                event: req.params.id
+            }
+        });
+        await ticket.destroy();
+        res.status(200).json({message: "Unenrolled from event"});
+    }
+    catch(e){
+        console.log(e);
+    }
+}
+
+async function isEnrolled(req, res) {
+    try{
+        let user = await getAuther(req.headers.authorization);
+        const ticket = await Ticket.findOne({
+            where: {
+                user: user,
+                event: req.params.id
+            }
+        });
+        if(ticket){
+            res.status(200).json(true);
+        }
+        else{
+            res.status(200).json(false);
+        }
     }
     catch(e){
         console.log(e);
@@ -64,7 +150,7 @@ async function getEventById(req,res){
     }
 }
 
-function getAuther(token){
+async function getAuther(token){
     let user = jwt.decode(token.split(' ')[1]).username;
     console.log(user);
     return user;
@@ -74,5 +160,9 @@ module.exports = {
     createEvent,
     getAllEvents,
     getMyEvents,
-    getEventById
+    getEventById,
+    enrollEvent,
+    getEnrolledEvents,
+    isEnrolled,
+    unenroll
 }

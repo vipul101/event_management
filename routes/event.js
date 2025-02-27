@@ -17,13 +17,21 @@ const {
     createEvent,
     getAllEvents,
     getMyEvents,
-    getEventById
+    getEventById,
+    enrollEvent,
+    getEnrolledEvents,
+    isEnrolled,
+    unenroll
 } = require("../controllers/event.js");
 
 router.get("/all", getAllEvents);
-router.get("/:id", getEventById);
+router.get("/id/:id", getEventById);
 router.use(verfiyUserToken);
 router.get("/myevent", getMyEvents);
+router.post("/enroll/:id", enrollEvent);
+router.get("/mytickets", getEnrolledEvents);
+router.get("/isenrolled/:id", isEnrolled);
+router.post("/unenroll/:id", unenroll);
 router.post("/create", upload.single('cover'), createEvent);
 
 module.exports = router;
